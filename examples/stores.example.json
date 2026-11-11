@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "platforms": {
+    "demo": { "name": "示例中台甲", "profileId": "填入甲中台的 Ego 资料 ID" },
+    "demoSecond": { "name": "示例中台乙", "profileId": "填入乙中台的 Ego 资料 ID" }
+  },
+  "stores": [
+    { "name": "示例商店（甲店）", "id": "90000001", "platform": "demo" },
+    { "name": "示例商店（乙店）", "id": "90000002", "platform": "demoSecond" }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "stores": [
+    {
+      "id": "90000001",
+      "periods": [
+        {
+          "title": "正常时段",
+          "minOrder": [
+            { "range": { "ordinaryTier": 1 }, "value": "16.00" }
+          ],
+          "baseFee": [
+            { "range": { "ordinaryTier": 1 }, "value": "3.50" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "90000002",
+      "periods": [
+        { "title": "正常时段", "minOrder": "18.00", "baseFee": "5.00" }
+      ]
+    }
+  ]
+}

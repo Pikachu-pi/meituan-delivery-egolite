@@ -1,0 +1,9 @@
+{
+  "name": "meituan-delivery-egolite",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "通过 Ego Lite 调整美团各时段起送价、配送费及特殊时段开关",
+  "scripts": { "test": "node --test" },
+  "engines": { "node": ">=20" }
+}

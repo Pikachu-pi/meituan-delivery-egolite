@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "periods": [
+    {
+      "title": "正常时段",
+      "minOrder": "16.00",
+      "baseFee": [
+        { "range": { "ordinaryTier": 1 }, "value": "3.50" },
+        { "range": { "name": "快送", "distanceKm": "6.5" }, "value": "7.00" }
+      ]
+    },
+    {
+      "title": "恶劣天气时段",
+      "baseFee": "5.50",
+      "enabled": true,
+      "activeMinutes": 30
+    }
+  ]
+}

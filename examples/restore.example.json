@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "periods": [
+    {
+      "title": "正常时段",
+      "minOrder": [
+        { "range": { "ordinaryTier": 1 }, "from": "16.00", "value": "19.90" }
+      ],
+      "baseFee": [
+        { "range": { "ordinaryTier": 1 }, "from": "3.50", "value": "5.00" }
+      ]
+    }
+  ]
+}
