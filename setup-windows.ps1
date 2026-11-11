@@ -3,6 +3,7 @@ param([switch] $Check, [switch] $OpenBrowser)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $originalPath = $env:Path
+$setupPromptFile = Join-Path $PSScriptRoot 'src\onboarding-prompts.json'
 
 function Refresh-SetupPath {
     $env:Path = @(
@@ -64,7 +65,14 @@ function Open-EgoWindow {
 }
 
 function Write-SetupEvent($status) {
-    @{ status = $status } | ConvertTo-Json -Compress
+    $step = switch ($status) {
+        'ego_installer' { 'install-window' }
+        'ego_setup' { 'setup-window' }
+        'node_installer' { 'node-window' }
+        default { throw "Unknown setup event: $status" }
+    }
+    $prompts = Get-Content -LiteralPath $setupPromptFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    @{ status = $status; message = $prompts.$step } | ConvertTo-Json -Compress
 }
 
 function Write-SetupState {
@@ -103,6 +111,7 @@ if ($OpenBrowser) {
     Open-EgoWindow
     return
 }
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 Refresh-SetupPath
 if ((Find-EgoCli) -and (Find-Node)) {
     Write-SetupState

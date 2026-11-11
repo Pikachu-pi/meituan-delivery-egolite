@@ -5,8 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { onboardingGuide } from "../src/onboarding-guide.mjs";
 
-test("Windows setup waits for the installer's child process", { skip: process.platform !== "win32" }, async t => {
+test("Windows setup emits fixed messages without Node.js and waits for installer children", { skip: process.platform !== "win32" }, async t => {
   const dir = await mkdtemp(path.join(tmpdir(), "meituan-setup-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const installer = path.join(dir, "installer.ps1");
@@ -24,14 +25,17 @@ test("Windows setup waits for the installer's child process", { skip: process.pl
 
   const script = [
     "$ErrorActionPreference = 'Stop'",
+    "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)",
     "$source = [System.Management.Automation.Language.Parser]::ParseFile($env:MD_SETUP_TEST_SCRIPT, [ref]$null, [ref]$null)",
-    "$definition = $source.Find({ param($item) $item -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $item.Name -eq 'Start-SetupInstaller' }, $true)",
-    ". ([scriptblock]::Create($definition.Extent.Text))",
-    "function Write-SetupEvent($status) { Write-Output $status }",
+    "$functions = $source.FindAll({ param($item) $item -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $item.Name -in @('Write-SetupEvent', 'Start-SetupInstaller') }, $true)",
+    "foreach ($definition in $functions) { . ([scriptblock]::Create($definition.Extent.Text)) }",
+    "$setupPromptFile = Join-Path (Split-Path -Parent $env:MD_SETUP_TEST_SCRIPT) 'src\\onboarding-prompts.json'",
     "$PSDefaultParameterValues['Start-Process:WindowStyle'] = 'Hidden'",
     "$installer = '\"' + $env:MD_SETUP_TEST_INSTALLER + '\"'",
-    "Start-SetupInstaller (Join-Path $PSHOME 'powershell.exe') @('-NoProfile','-File',$installer) 'fixture_installer' @(0)",
+    "Start-SetupInstaller (Join-Path $PSHOME 'powershell.exe') @('-NoProfile','-File',$installer) 'ego_installer' @(0)",
     "if (-not (Test-Path -LiteralPath $env:MD_SETUP_TEST_MARKER)) { throw 'Installer child still running' }",
+    "Write-SetupEvent 'ego_setup'",
+    "Write-SetupEvent 'node_installer'",
   ].join("\n");
   const output = execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "RemoteSigned", "-Command", script], {
     encoding: "utf8", timeout: 20000, windowsHide: true,
@@ -43,7 +47,11 @@ test("Windows setup waits for the installer's child process", { skip: process.pl
       MD_SETUP_TEST_MARKER: marker,
     },
   });
-  assert.match(output, /fixture_installer/);
+  assert.deepEqual(output.trim().split(/\r?\n/).map(line => JSON.parse(line)), [
+    { status: "ego_installer", message: onboardingGuide("install-window", []) },
+    { status: "ego_setup", message: onboardingGuide("setup-window", []) },
+    { status: "node_installer", message: onboardingGuide("node-window", []) },
+  ]);
   assert.equal((await readFile(marker, "utf8")).trim(), "finished");
 });
 

@@ -1,11 +1,11 @@
 ---
 name: meituan-delivery-egolite
-description: 用 Ego Lite 查看美团闪购门店的配送设置，或调整指定时段和档位的起送价、基础配送费及手动时段开关。
+description: 安装美团配送设置项目、首次登记和核对门店。用 Ego Lite 查看或调整美团闪购门店的起送价、基础配送费及手动时段开关。
 ---
 
 # 美团配送设置
 
-使用本目录的 `cli.mjs`。安装和参数见 [README](README.md)。
+使用本目录的 `cli.mjs`。收到安装、配置或首次登记请求时，直接执行下方首次引导。终端操作见 [README](README.md)。
 
 - **登记门店**按下方首次引导执行。单独查看一家店时用 `inspect <门店ID>`。
 - **调整或恢复**时，按本次指令确定门店、时段、范围和目标。用户要改全部时段时，先用 `inspect` 确认现场有哪些时段。区分普通档位和页面序号，[档位定义](docs/档位与时段.md) 也说明了怎么指定快送。把任务写在 `.local/`，单店用 `apply`，多店用 `batch`。恢复价格时，按原记录填写上次调后的值和当时的原值。示例见 [单店任务](examples/job.example.json) 和 [恢复任务](examples/restore.example.json)。
@@ -19,9 +19,9 @@ description: 用 Ego Lite 查看美团闪购门店的配送设置，或调整指
 
 ## 首次引导
 
-每次只发当前一步，已经完成的步骤直接跳过。逐字发送 `node cli.mjs guide` 输出的正文，保留标题和换行。命令、环境检查和内部字段只用于执行。Node.js 尚未安装时，从 [固定文案](src/onboarding-guide.mjs) 取相应正文。
+每次只发当前一步的原文。安装时取脚本事件的 `message`，登记时取 `node cli.mjs guide <步骤>` 的输出。解码 JSON 后按 Markdown 正文发送，保留标题和换行，消息中只放这段正文。等用户完成当前操作再继续，已经完成的步骤直接跳过。
 
-1. 在 Windows 本机先用能持续运行的命令会话执行 `powershell -NoProfile -ExecutionPolicy RemoteSigned -File .\setup-windows.ps1`。脚本会检查、下载并启动缺少的安装窗口。看到 `ego_installer` 后确认安装器已启动，再发 `guide install-window`。看到 `ego_setup` 发 `guide setup-window`。Node.js 安装会自行继续，出现系统授权提示时用 `guide node-window`。等待同一命令继续。若安装窗口已完成但命令仍在运行，可用脚本的 `-Check` 查看状态。收到 `ready` 后，用返回的路径运行 `profiles` 确认可连接。旧终端找不到新命令时，在执行命令的进程里把 `egoBrowserPath` 所在目录加入 PATH，并用 `nodePath` 直接运行。仅在无法代启动的环境使用 `guide install`、`guide open` 或 `guide node`。
+1. 在 Windows 本机先用能持续运行并读取输出的命令会话执行 `powershell -NoProfile -ExecutionPolicy RemoteSigned -File .\setup-windows.ps1`。脚本会检查、下载并启动缺少的安装窗口。`ego_installer` 确认安装器已启动后发该事件的 `message`，`ego_setup` 在 Ego 窗口出现后直接发 `message`。`node_installer` 会自行继续，出现系统授权提示时发该事件的 `message`。等待同一命令继续。若安装窗口已完成但命令仍在运行，可用脚本的 `-Check` 查看状态。收到 `ready` 后，用返回的路径运行 `profiles` 确认可连接。旧终端找不到新命令时，在执行命令的进程里把 `egoBrowserPath` 所在目录加入 PATH，并用 `nodePath` 直接运行。无法代启动时，从 [固定文案](src/onboarding-prompts.json) 取当前一步的原文：Ego Lite 未安装取 `install`，已安装但未完成首次设置取 `open`，只缺 Node.js 取 `node`。
 2. 缺名单用 `guide stores`。接受 Excel 附件、粘贴的名单或直接输入的内容。读取用户已有名单，只追问缺少的门店信息。按 [门店示例](examples/stores.example.json) 把名单保存到 `.local/stores.json`，保留已登记的其他门店。按中台全名查找同名 Ego 资料，保存对应的 `profileId`。现有 Ego 命令能列出和使用资料。缺少同名资料时，用 `guide profile <中台名…>` 请用户在 Ego 里新建或改名。完成后重新查找，接着打开登录页。同名资料有多份时请用户选一份。
 3. 为资料就绪的中台运行 `onboard <中台键>`。仅对实际返回 `login_required` 的中台用 `guide login <中台名…>`。收到登录完成的回复后，用对应的空间 ID 继续。收到 `profile_required` 时按第二步准备资料。收到 `profile_mismatch` 时，重新核对同名资料，修正登记的 ID 后再打开登录页。
 4. 开始只读核对时用 `guide inspect`。完成后用 `guide done <成功数> ["门店名｜具体原因"…]`，每家待处理门店占一行。现场特殊情况写入对应店档案的 `notes`。
