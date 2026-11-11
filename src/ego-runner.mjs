@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { enterStore, merchantIdentity, openOverview, openSettings, readPage, samePrices } from "./ego-page.mjs";
+import { enterStore, merchantIdentity, openOverview, openSettings, readBlockingPopup, readPage, samePrices } from "./ego-page.mjs";
 import { compareRangeLists, compileJob } from "./job.mjs";
 import { setMinimumPeriod, setBaseFee } from "./adjust.mjs";
 import { manualPeriod, readPeriodControls, setPeriodEnabled } from "./special.mjs";
@@ -111,14 +111,15 @@ function runStore(entry) {
 }
 
 async function openStore(entry) {
-  const { store, platform, spaceId, runId } = entry;
+  const { store, platform, spaceId, runId, onboarding } = entry;
   const started = performance.now();
   const startedAt = new Date().toISOString();
   const prior = spaceId && (await listTaskSpaces()).find(item => item.id === Number(spaceId));
   if (spaceId && prior?.profileId !== platform.profileId) throw new Error("续用空间未绑定登记资料");
   const task = prior
     ? (prior.ownership === "agent" ? await taskSpace(prior.id) : await takeOverTaskSpace(prior.id))
-    : await taskSpace("美团配送 " + store.id + " " + runId, { profileId: platform.profileId });
+    : await taskSpace(onboarding ? "美团登录 · " + (platform.name || store.platform) + " · " + store.id + " " + runId
+      : "美团配送 " + store.id + " " + runId, { profileId: platform.profileId });
   const taskInfo = (await listTaskSpaces()).find(item => item.id === task.spaceId);
   if (taskInfo?.profileId !== platform.profileId) throw new Error("此 Ego 空间未绑定登记资料");
   let page = task.page("p1");
@@ -135,15 +136,24 @@ async function openStore(entry) {
     if (!login) throw new Error("商家页面未加载，请检查 Ego Lite 中的美团页面后再试。");
     await task.handOff();
     return { status: "login_required", storeId: store.id, spaceId: task.spaceId, platform: platform.name,
-      message: "请在 Ego 窗口完成美团登录，然后用本次返回的空间 ID 继续。", startedAt, finishedAt: new Date().toISOString() };
+      message: "请在 Ego 窗口完成美团登录，然后继续核对。", startedAt, finishedAt: new Date().toISOString() };
   }
   const identity = await merchantIdentity(page);
+  const runSelected = async () => {
+    try {
+      return await runSelectedStore({ ...entry, task, page, started, startedAt });
+    } catch (error) {
+      const popup = await readBlockingPopup(page).catch(() => undefined);
+      if (!popup) throw error;
+      return { status: "needs_check", storeId: store.id, spaceId: task.spaceId, popup, error: error.message };
+    }
+  };
   if (!store.account) {
     if (!identity.account) throw new Error("未读到美团登录账号，请先完成登录。");
     store.account = identity.account;
-    return withClaim("account", store.account, () => runSelectedStore({ ...entry, task, page, started, startedAt }));
+    return withClaim("account", store.account, runSelected);
   }
-  return runSelectedStore({ ...entry, task, page, started, startedAt });
+  return runSelected();
 }
 
 async function runSelectedStore({ store, platform, profileFile, archive, job, dir, task, page, started, startedAt }) {
@@ -209,6 +219,7 @@ async function runSelectedStore({ store, platform, profileFile, archive, job, di
       summary.lastAttemptFile = attemptedFile;
     }
     summary.spaceId = task.spaceId;
+    summary.popup = await readBlockingPopup(page).catch(() => undefined);
     if (writing) summary.message = "先用 inspect 核对现场，再决定是否继续。";
   }
   if (summary.status === "verified") {
@@ -218,6 +229,33 @@ async function runSelectedStore({ store, platform, profileFile, archive, job, di
   summary.elapsedMs = Math.round(performance.now() - started);
   await writeRecord(path.join(dir, "summary.json"), summary);
   return { ...summary, dir };
+}
+
+export async function inspectPlatform(config, platformKey, spaceId, runId, inspect = runStore, register = findStore) {
+  const platform = Object.hasOwn(config.platforms, platformKey) && config.platforms[platformKey];
+  const registered = config.stores.filter(store => store.platform === platformKey);
+  if (!platform || !registered.length) throw new Error("这个中台没有登记门店，请检查 .local/stores.json。");
+  const stores = [];
+  for (const [index, store] of registered.entries()) {
+    try {
+      const result = await inspect({
+        ...await register(config, store.id, false), spaceId: index === 0 ? spaceId : undefined, runId, onboarding: true,
+      });
+      stores.push(result);
+      if (result.status === "login_required") {
+        return { status: "login_required", platform: platform.name || platformKey, spaceId: result.spaceId,
+          stores, waiting: registered.slice(index).map(item => item.id) };
+      }
+    } catch (error) {
+      stores.push({ status: error.code === "busy" ? "busy" : "failed", storeId: store.id, error: error.message });
+      if (error.code === "busy") {
+        return { status: "busy", platform: platform.name || platformKey, stores,
+          waiting: registered.slice(index).map(item => item.id) };
+      }
+    }
+  }
+  return { status: stores.every(store => store.status === "read_only") ? "read_only" : "needs_check",
+    platform: platform.name || platformKey, stores };
 }
 
 async function run(request) {
@@ -232,6 +270,12 @@ async function run(request) {
   const config = await readJson(configFile, "门店清单 .local/stores.json");
   if (config?.version !== 1 || !Array.isArray(config.stores) || !config.platforms) {
     throw new Error("门店清单需包含 version: 1、platforms 和 stores。");
+  }
+  if (request.command === "onboard") {
+    const result = await inspectPlatform(config, request.id, request.spaceId, request.runId);
+    await report(result);
+    if (["needs_check", "busy"].includes(result.status)) process.exitCode = 1;
+    return;
   }
   const batch = request.command === "batch";
   const dir = path.join(local, "runs", request.runId);

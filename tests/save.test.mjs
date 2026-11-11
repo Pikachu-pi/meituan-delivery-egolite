@@ -68,6 +68,10 @@ class SettingsPage {
       else if (selector.includes('data-md-action="编辑"')) this.draft = [...this.prices.minOrder];
       else if (selector.includes('data-md-action="保存"')) {
         this.changes.push("minOrder");
+        if (this.askToSave) {
+          this.nativeDialog = { type: "confirm", message: "确认保存当前修改吗？" };
+          throw new Error("a JavaScript confirm dialog opened while Runtime.evaluate was running");
+        }
         this.prices.minOrder = this.draft;
         this.draft = null;
       } else if (selector.includes("actionBtn_")) {
@@ -91,6 +95,12 @@ class SettingsPage {
   }
 
   async waitForSelector() {}
+  async info() { return { dialog: this.nativeDialog }; }
+  async acceptDialog() {
+    this.prices.minOrder = this.draft;
+    this.draft = null;
+    this.nativeDialog = null;
+  }
   async waitForFunction(callback, arg) {
     if (this.missingSaveFeedback && Object.hasOwn(arg ?? {}, "groupIndex")) throw new Error("保存后未收到页面响应");
   }
@@ -158,6 +168,18 @@ test("重新打开后的读数不符时保留读数，保存步骤不标为核�
   assert.equal(step.status, "observed");
   assert.equal(actual.periods[0].rows[0].value, "19.90");
   assert.deepEqual(page.changes, ["minOrder"]);
+});
+
+test("保存弹窗处理后读取实际值，只点击一次保存", async t => {
+  const dir = await fixture(t);
+  const page = new SettingsPage();
+  page.askToSave = true;
+  const recordFile = path.join(dir, "confirmed.json");
+  const record = await setMinimumPeriod({ page, store, periodTitle: title, values: ["16.00", "16.00"], recordFile });
+  assert.equal(record.status, "verified");
+  assert.equal(record.nativeDialog.action, "accepted");
+  assert.deepEqual(page.changes, ["minOrder"]);
+  assert.deepEqual(page.reloads, ["minOrder"]);
 });
 
 test("保存发出后失去响应，记录待核实且没有再次保存", async t => {

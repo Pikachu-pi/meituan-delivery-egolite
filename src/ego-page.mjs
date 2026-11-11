@@ -4,7 +4,9 @@ import { identifyRange, cents } from "./definitions.mjs";
 function inspectSite({ action = "read", selector, fields, expectedAccount, expectedId, expectedName } = {}) {
   let wrapper;
   let business;
+  const documents = [];
   function visit(doc) {
+    documents.push(doc);
     const url = new URL(doc.URL);
     if (url.pathname === "/page/sellercenter/commonWrapper") wrapper = doc;
     if (url.pathname === "/unif/poimanage") business = doc;
@@ -19,6 +21,27 @@ function inspectSite({ action = "read", selector, fields, expectedAccount, expec
   if (expectedAccount && account !== expectedAccount) throw new Error("当前登录账号与登记账号不符");
   if (expectedId && storeId !== expectedId) throw new Error("当前门店 ID 与目标不符");
   if (expectedName && storeName !== expectedName) throw new Error("当前门店名称与登记不符");
+  if (action === "notice" || action === "popup") {
+    const visible = element => element.getClientRects().length > 0;
+    const dialogs = documents.flatMap(doc => [...doc.querySelectorAll('.roo-modal, [role="dialog"]')]).filter(visible);
+    if (action === "popup") return dialogs.map(dialog => dialog.innerText.trim().slice(0, 350)).filter(Boolean).at(-1);
+    const buttons = new Set();
+    for (const dialog of dialogs) {
+      const controls = [...dialog.querySelectorAll('button, [role="button"], input, textarea, select')].filter(visible);
+      const actions = controls.filter(control => control.textContent.trim() || control.matches("input, textarea, select"));
+      if (actions.length === 1 && /^(?:我知道了|知道了)$/.test(actions[0].textContent.trim())
+        && !actions[0].disabled && actions[0].getAttribute("aria-disabled") !== "true"
+        && !/验证码|重新登录|密码/.test(dialog.innerText)) {
+        buttons.add(actions[0]);
+      }
+    }
+    if (buttons.size === 1) {
+      const [button] = buttons;
+      button.click();
+      return true;
+    }
+    return false;
+  }
   if (!business?.body) return { storeId, ready: false };
   if (action === "reload") {
     const previous = business.defaultView.performance.timeOrigin;
@@ -127,6 +150,7 @@ export async function merchantIdentity(page) {
 }
 
 export async function enterStore(page, store) {
+  await dismissNotice(page);
   const identity = await merchantIdentity(page);
   if (!identity.account || (store.account && identity.account !== store.account)) {
     throw new Error("请在当前 Ego 资料登录对应美团账号");
@@ -188,8 +212,58 @@ export async function scrollTo(page, selector) {
 
 // The nested fee dialog can move between pointer hit testing and dispatch.
 // Activate the identified visible UI control in its own document.
-export async function activate(page, store, selector) {
-  await page.evaluate(inspectSite, { action: "activate", selector, expectedAccount: store.account, expectedId: store.id, expectedName: store.name });
+export async function activate(page, store, selector, confirmation) {
+  try {
+    await page.evaluate(inspectSite, { action: "activate", selector, expectedAccount: store.account, expectedId: store.id, expectedName: store.name });
+  } catch (error) {
+    return resolveNativeDialog(page, error, confirmation);
+  }
+}
+
+export async function resolveNativeDialog(page, error, confirmation) {
+  if (!/JavaScript .*dialog/i.test(error.message)) throw error;
+  const { dialog } = await page.info();
+  if (!dialog) throw error;
+  const { type, message } = dialog;
+  const text = message.replace(/[\s。？?！!]/g, "");
+  const prefix = "(?:您|请|是否|确认|确定|要)*";
+  const suffix = "(?:吗|么)?";
+  const save = new RegExp("^" + prefix + "保存(?:本次|此次|当前|的|起送价|基础配送费|配送费|价格|修改|调整|更改|设置|配置)*" + suffix + "$");
+  const toggle = confirmation?.period && new RegExp("^" + prefix
+    + (confirmation.enabled ? "开启" : "关闭")
+    + "(?:(?:当前|该|此)?时段|" + confirmation.period.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?:时段)?)" + suffix + "$");
+  if (type === "alert" || (type === "confirm" && confirmation
+    && /opened while Runtime\.evaluate was running/i.test(error.message)
+    && (save.test(text) || toggle?.test(text)))) {
+    await page.acceptDialog();
+    return { type, message, action: "accepted" };
+  }
+  throw new Error("页面有待判断的弹窗（" + type + "）：" + message);
+}
+
+export async function dismissNotice(page) {
+  try {
+    return await page.evaluate(inspectSite, { action: "notice" });
+  } catch (error) {
+    return resolveNativeDialog(page, error);
+  }
+}
+
+export async function readBlockingPopup(page) {
+  const { dialog } = await page.info();
+  if (dialog) return { type: dialog.type, text: dialog.message };
+  const text = await page.evaluate(inspectSite, { action: "popup" });
+  return text ? { type: "page", text } : undefined;
+}
+
+export async function waitPastNotice(page, wait) {
+  await dismissNotice(page);
+  try {
+    return await wait();
+  } catch (error) {
+    if (await dismissNotice(page)) return wait();
+    throw error;
+  }
 }
 
 export async function fillFields(page, store, fields) {
@@ -216,7 +290,7 @@ export async function waitForPrice(page, { field, groupIndex, rowIndex, value })
 }
 
 export async function waitForModal(page, text, present = true) {
-  await page.waitForFunction(({ text, present }) => {
+  await waitPastNotice(page, () => page.waitForFunction(({ text, present }) => {
     function visit(doc) {
       const visible = [...doc.querySelectorAll(".roo-modal")].some(modal =>
         modal.getClientRects().length > 0 && modal.innerText.includes(text));
@@ -227,7 +301,7 @@ export async function waitForModal(page, text, present = true) {
       return false;
     }
     return visit(document) === present;
-  }, { text, present }, { timeout: 12000 });
+  }, { text, present }, { timeout: 12000 }));
 }
 
 export async function armFeedback(page) {
@@ -309,6 +383,7 @@ async function waitForBusiness(page, selector, previousOrigin = null) {
 }
 
 export async function openSettings(page, field, { fresh = false } = {}) {
+  await dismissNotice(page);
   const state = await page.evaluate(inspectSite);
   if (state.kind === field && !fresh) return;
   const ready = (field === "minOrder" ? '[class^="settingBox_"]' : '[class^="DeliverySettingItem_"]') + ' [class^="price_"] span';
@@ -330,6 +405,7 @@ export async function openOverview(page, { fresh = false } = {}) {
   if (state.ready && state.kind !== "overview") await page.evaluate(inspectSite, { action: "overview" });
   const previousOrigin = fresh && state.ready ? await page.evaluate(inspectSite, { action: "reload" }) : null;
   await waitForBusiness(page, '[class^="addTimeBtn_"]', previousOrigin);
+  await dismissNotice(page);
   await dismissGuide(page);
 }
 

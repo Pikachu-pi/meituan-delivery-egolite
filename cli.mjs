@@ -10,6 +10,7 @@ const [command, id, fileOrSpace, resumeSpace] = process.argv.slice(2);
 const usage = `美团配送设置
 
   node cli.mjs profiles                          查看 Ego 资料
+  node cli.mjs onboard <中台键> [空间ID]          打开登录页或按名单只读核对
   node cli.mjs inspect <门店ID> [空间ID]          只读核对并保存门店档案
   node cli.mjs apply <门店ID> <任务.json> [空间ID]  调整一家门店
   node cli.mjs batch <任务.json>                  批量调整
@@ -19,6 +20,7 @@ const isId = value => /^\d+$/.test(value ?? "");
 const optionalId = value => value === undefined || isId(value);
 const valid = {
   profiles: id === undefined,
+  onboard: Boolean(id) && optionalId(fileOrSpace) && resumeSpace === undefined,
   inspect: isId(id) && optionalId(fileOrSpace) && resumeSpace === undefined,
   apply: isId(id) && Boolean(fileOrSpace) && optionalId(resumeSpace),
   batch: Boolean(id) && fileOrSpace === undefined,

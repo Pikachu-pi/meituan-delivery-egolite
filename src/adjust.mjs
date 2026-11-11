@@ -1,5 +1,5 @@
 import { amount, cents, rangeIdentity, selectRange } from "./definitions.mjs";
-import { readPage, openSettings, activate, fillFields, samePrices, armFeedback, readFeedback, readSaveRequests, xpathText, waitForModal, waitForPrice } from "./ego-page.mjs";
+import { readPage, openSettings, activate, fillFields, samePrices, armFeedback, readFeedback, readSaveRequests, xpathText, waitForModal, waitForPrice, waitPastNotice } from "./ego-page.mjs";
 import { writeRecord } from "./records.mjs";
 
 export async function setMinimumPeriod({ page, store, periodTitle, values, ranges, recordFile, expectedBefore, freshRead = true }) {
@@ -53,8 +53,9 @@ export async function setMinimumPeriod({ page, store, periodTitle, values, range
   record.saveRequestedAt = new Date().toISOString();
   await writeRecord(recordFile, record);
   try {
-    await activate(page, store, group + ' button[data-md-action="保存"]');
-    await page.waitForFunction(({ groupIndex }) => {
+    const dialog = await activate(page, store, group + ' button[data-md-action="保存"]', { save: true });
+    if (dialog) record.nativeDialog = dialog;
+    await waitPastNotice(page, () => page.waitForFunction(({ groupIndex }) => {
       function visit(doc) {
         const box = doc.querySelectorAll('[class^="settingBox_"]')[groupIndex];
         if (box && [...box.querySelectorAll("button")].some(button => button.textContent.trim() === "编辑")) return true;
@@ -62,7 +63,7 @@ export async function setMinimumPeriod({ page, store, periodTitle, values, range
         return false;
       }
       return visit(document);
-    }, { groupIndex: period.groupIndex }, { timeout: 15000 });
+    }, { groupIndex: period.groupIndex }, { timeout: 15000 }));
     record.saveUiClosedAt = new Date().toISOString();
     record.feedback = await readFeedback(page);
     record.requests = await readSaveRequests(page);
@@ -136,7 +137,8 @@ export async function setBaseFee({ page, store, periodTitle, range, value, recor
     const finalButton = '[data-md-modal="' + prompt.index + '"] button[data-md-modal-action="保存"]';
     record.finalSaveRequestedAt = new Date().toISOString();
     await writeRecord(recordFile, record);
-    await activate(page, store, finalButton);
+    const nativeDialog = await activate(page, store, finalButton, { save: true });
+    if (nativeDialog) record.nativeDialog = nativeDialog;
     await waitForModal(page, "按配送范围分别设置配送费及加价", false);
     await waitForModal(page, "确认保存吗", false);
     record.saveUiClosedAt = new Date().toISOString();

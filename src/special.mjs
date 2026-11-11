@@ -62,7 +62,8 @@ export async function confirmPeriodToggle({ page, store, periodTitle, enabled, a
   await writeRecord(recordFile, record);
   try {
     const button = scope + ' button[data-md-modal-action="' + (enabled ? "确认" : "确定") + '"]';
-    await activate(page, store, button);
+    const dialog = await activate(page, store, button, { period: period.name, enabled });
+    if (dialog) record.nativeDialog = dialog;
     await waitForModal(page, promptText, false);
     record.saveUiClosedAt = new Date().toISOString();
     record.feedback = await readFeedback(page);
