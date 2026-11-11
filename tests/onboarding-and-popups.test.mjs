@@ -89,6 +89,8 @@ test("首次引导按确认的格式输出", () => {
   const cli = fileURLToPath(new URL("../cli.mjs", import.meta.url));
   const guide = (...args) => execFileSync(process.execPath, [cli, "guide", ...args], { encoding: "utf8" }).trimEnd();
   assert.equal(guide("install"), "**第一步　安装 Ego Lite**\n[下载 Ego Lite](https://lite.ego.app/download)，打开安装包，按窗口提示完成安装。装好后打开 Ego Lite，回复「已打开」。");
+  assert.equal(guide("install-window"), "**第一步　安装 Ego Lite**\n安装窗口已打开。请按窗口提示完成安装。");
+  assert.equal(guide("setup-window"), "**第一步　完成 Ego Lite 设置**\nEgo Lite 已打开。请按窗口提示完成首次设置，完成后回复「设置完成」。");
   assert.equal(guide("stores"), "**第二步　发门店名单**\n请发每家店的美团门店全名和门店 ID，再告诉我所属中台。如果都是同一个中台，中台名写一次就行。");
   assert.equal(guide("login", "小仓"), "**第三步　登录美团**\n「小仓」的美团登录页已打开。请在 Ego Lite 里登录，看到美团商家首页后，回复「登录完成」。");
   assert.equal(guide("login", "小仓", "乐心宜"), "**第三步　登录美团**\n「小仓」和「乐心宜」的美团登录页已打开。你可以先登录其中一个，完成后回复「小仓已登录」或「乐心宜已登录」。我会先核对已登录中台的门店。");

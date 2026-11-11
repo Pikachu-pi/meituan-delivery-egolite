@@ -1,7 +1,10 @@
 const fixed = {
   install: "**第一步　安装 Ego Lite**\n[下载 Ego Lite](https://lite.ego.app/download)，打开安装包，按窗口提示完成安装。装好后打开 Ego Lite，回复「已打开」。",
+  "install-window": "**第一步　安装 Ego Lite**\n安装窗口已打开。请按窗口提示完成安装。",
+  "setup-window": "**第一步　完成 Ego Lite 设置**\nEgo Lite 已打开。请按窗口提示完成首次设置，完成后回复「设置完成」。",
   open: "**第一步　打开 Ego Lite**\n打开 Ego Lite，按窗口提示完成首次设置。完成后重新打开当前对话工具，回复「已打开」。",
   node: "**安装 Node.js**\n[下载 Node.js](https://nodejs.org/)，打开安装包，按窗口提示完成安装。装好后回复「已装好」。",
+  "node-window": "**安装 Node.js**\n如果出现 Windows 授权提示，请查看后确认。安装进度会自动继续。",
   stores: "**第二步　发门店名单**\n请发每家店的美团门店全名和门店 ID，再告诉我所属中台。如果都是同一个中台，中台名写一次就行。",
   inspect: "**第四步　核对门店**\n我会按名单查看各店的时段、档位、起送价、配送费和特殊时段开关。这一步只查看。",
 };
@@ -36,5 +39,5 @@ export function onboardingGuide(stage, values) {
       return [result, ...issues].join("\n");
     }
   }
-  throw new Error("用法：guide install|open|node|stores|profile <中台名…>|login <中台名…>|inspect|done <成功数> [门店名｜原因…]");
+  throw new Error("用法：guide install|install-window|setup-window|open|node|node-window|stores|profile <中台名…>|login <中台名…>|inspect|done <成功数> [门店名｜原因…]");
 }

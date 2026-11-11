@@ -15,7 +15,7 @@ description: 用 Ego Lite 查看美团闪购门店的配送设置，或调整指
 
 每次只发当前一步，已经完成的步骤直接跳过。逐字发送 `node cli.mjs guide` 输出的正文，保留标题和换行。命令、环境检查和内部字段只用于执行。Node.js 尚未安装时，从 [固定文案](src/onboarding-guide.mjs) 取相应正文。
 
-1. Ego Lite 未安装用 `guide install`，已安装但尚未完成首次设置用 `guide open`。缺 Node.js 时用 `guide node`。用 `profiles` 确认可连接。
+1. 在 Windows 本机先用能持续运行的命令会话执行 `powershell -NoProfile -ExecutionPolicy RemoteSigned -File .\setup-windows.ps1`。脚本会检查、下载并启动缺少的安装窗口。看到 `ego_installer` 后确认安装器已启动，再发 `guide install-window`。看到 `ego_setup` 发 `guide setup-window`。Node.js 安装会自行继续，出现系统授权提示时用 `guide node-window`。等待同一命令继续。若安装窗口已完成但命令仍在运行，可用脚本的 `-Check` 查看状态。收到 `ready` 后，用返回的路径运行 `profiles` 确认可连接。旧终端找不到新命令时，在执行命令的进程里把 `egoBrowserPath` 所在目录加入 PATH，并用 `nodePath` 直接运行。仅在无法代启动的环境使用 `guide install`、`guide open` 或 `guide node`。
 2. 缺名单用 `guide stores`。按 [门店示例](examples/stores.example.json) 把名单保存到 `.local/stores.json`，保留已登记的其他门店。按名单里的中台全名查找同名 Ego 资料，保存对应的 `profileId`。找不到同名资料用 `guide profile <中台名…>`，等用户准备好后重新查找。同名资料有多份时请用户选一份。
 3. 为资料就绪的中台运行 `onboard <中台键>`。仅对实际返回 `login_required` 的中台用 `guide login <中台名…>`。收到登录完成的回复后，用对应的空间 ID 继续。收到 `profile_required` 时按第二步准备资料。收到 `profile_mismatch` 时，重新核对同名资料，修正登记的 ID 后再打开登录页。
 4. 开始只读核对时用 `guide inspect`。完成后用 `guide done <成功数> ["门店名｜具体原因"…]`，每家待处理门店占一行。现场特殊情况写入对应店档案的 `notes`。

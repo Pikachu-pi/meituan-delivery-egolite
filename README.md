@@ -4,23 +4,19 @@
 
 ## 安装
 
-1. 从仓库下载或克隆完整项目。
-2. 安装 [Node.js](https://nodejs.org/) 20 或更高版本，以及 [Ego Lite](https://lite.ego.app/)。打开 Ego Lite 完成首次设置，再打开一个新终端。
-3. 在项目目录运行下面三个命令。前两个能显示版本、第三个能列出 Ego 资料，就可以登记门店。当前实测环境为 Windows、Node.js 24 和 Ego Lite 0.6.2.7。
+**从对话开始**，把仓库链接发给你使用的工具，说「帮我安装这个项目并登记门店，每次只告诉我现在要做什么」。在 Windows 本机，工具会检查软件是否已装好，缺少时下载安装包并打开窗口。按窗口提示完成安装和 Ego Lite 的首次设置即可。
 
-   ```text
-   node --version
-   ego-browser --version
-   node cli.mjs profiles
-   ```
+**从终端开始**，先下载或克隆完整项目。Windows 用户在项目目录运行下面的命令。
 
-4. 如果从对话操作，按所用工具的 Skill 安装方式添加**整个项目目录**，然后开始登记。只复制 `SKILL.md` 会缺少执行脚本。也可以直接在终端使用下方命令。
+```powershell
+powershell -NoProfile -ExecutionPolicy RemoteSigned -File .\setup-windows.ps1
+```
 
-若终端找不到 `ego-browser`，回到 Ego Lite 完成首次设置，然后重新打开终端。
+装好后打开一个新终端，在项目目录运行 `node cli.mjs profiles`。看到 Ego Lite 的资料列表就可以登记门店。从对话使用时，按所用工具的 Skill 安装方式添加**整个项目目录**。
 
-### Windows 安装中断
+如果当前环境打不开 Windows 安装窗口，可从官网安装 [Ego Lite](https://lite.ego.app/download) 和 [Node.js](https://nodejs.org/) 20 或更高版本。完成 Ego Lite 首次设置后，再打开新终端。
 
-下载后运行安装器，按图形向导完成安装，再打开 Ego Lite。实测安装器使用 `/S` 会返回退出码 1。如果由工具启动安装窗口，且窗口随命令结束消失，可在保持运行的后台任务中使用 PowerShell 的 `Start-Process -Wait`。等你在窗口完成向导后，再继续下面的步骤。
+Ego Lite 使用图形向导。Windows 安装器实测使用 `/S` 会失败。脚本会等安装器和它启动的进程结束，避免安装窗口随命令提前关闭。
 
 ## 首次登记门店
 
