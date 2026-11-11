@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { enterStore, merchantIdentity, openOverview, openSettings, readBlockingPopup, readPage, samePrices } from "./ego-page.mjs";
+import { enterStore, merchantIdentity, minimizeTaskWindow, openOverview, openSettings, readBlockingPopup, readPage, samePrices } from "./ego-page.mjs";
 import { compareRangeLists, compileJob } from "./job.mjs";
 import { setMinimumPeriod, setBaseFee } from "./adjust.mjs";
 import { manualPeriod, readPeriodControls, setPeriodEnabled } from "./special.mjs";
@@ -127,6 +127,7 @@ async function openStore(entry) {
     const active = task.userPage();
     if (active) page = active.label ? active : await task.adopt(active);
   }
+  await minimizeTaskWindow(task, page);
   // The selected store is shared across spaces. Start at the merchant home before selecting it.
   await page.goto("https://shangoue.meituan.com/", { waitUntil: "commit", timeout: 15000 });
   try {

@@ -49,7 +49,7 @@ function Open-EgoWindow {
     if (-not $window) {
         $app = Find-EgoApp
         if (-not $app) { throw 'Ego Lite was not found. Open it from the Windows Start menu or run setup.' }
-        Start-Process -FilePath $app -WorkingDirectory (Split-Path -Parent $app)
+        Start-Process -FilePath $app -WorkingDirectory (Split-Path -Parent $app) -WindowStyle Minimized
         $deadline = (Get-Date).AddSeconds(30)
         do {
             Start-Sleep -Milliseconds 250

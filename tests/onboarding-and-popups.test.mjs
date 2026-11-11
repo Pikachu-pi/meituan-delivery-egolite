@@ -2,8 +2,32 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { resolveNativeDialog, waitPastNotice } from "../src/ego-page.mjs";
+import { minimizeTaskWindow, resolveNativeDialog, waitPastNotice } from "../src/ego-page.mjs";
 import { checkOnboardingProfile, inspectPlatform } from "../src/ego-runner.mjs";
+
+test("最小化当前任务窗口，不激活窗口，并等待窗口状态更新", async () => {
+  const calls = [];
+  const states = ["maximized", "minimized"];
+  const task = { async cdp(method, params) {
+    calls.push([method, params]);
+    if (method === "Browser.getWindowBounds") return { bounds: { windowState: states.shift() } };
+  } };
+  const page = { async cdp(method) {
+    assert.equal(method, "Browser.getWindowForTarget");
+    return { windowId: 42, bounds: { windowState: "maximized" } };
+  } };
+
+  await minimizeTaskWindow(task, page);
+  assert.deepEqual(calls, [
+    ["Browser.setWindowBounds", { windowId: 42, bounds: { windowState: "minimized" } }],
+    ["Browser.getWindowBounds", { windowId: 42 }],
+    ["Browser.getWindowBounds", { windowId: 42 }],
+  ]);
+
+  await minimizeTaskWindow({}, { async cdp() {
+    return { windowId: 42, bounds: { windowState: "minimized" } };
+  } });
+});
 
 const duringClick = new Error("a JavaScript confirm dialog opened while Runtime.evaluate was running; handle it before continuing");
 function dialogPage(type, message) {

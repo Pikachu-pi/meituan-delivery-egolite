@@ -1,5 +1,20 @@
 import { identifyRange, cents } from "./definitions.mjs";
 
+export async function minimizeTaskWindow(task, page) {
+  const { windowId, bounds } = await page.cdp("Browser.getWindowForTarget");
+  if (bounds.windowState === "minimized") return;
+
+  await task.cdp("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
+  // The native window can finish changing state after the command returns.
+  const deadline = performance.now() + 2000;
+  do {
+    const { bounds: actual } = await task.cdp("Browser.getWindowBounds", { windowId });
+    if (actual.windowState === "minimized") return;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  } while (performance.now() < deadline);
+  throw new Error("Ego 任务窗口未能最小化，请检查该窗口后重试。");
+}
+
 // Runs inside the page through Ego's documented evaluate method.
 function inspectSite({ action = "read", selector, fields, expectedAccount, expectedId, expectedName } = {}) {
   let wrapper;
