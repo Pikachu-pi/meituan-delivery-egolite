@@ -46,3 +46,21 @@ test("Windows setup waits for the installer's child process", { skip: process.pl
   assert.match(output, /fixture_installer/);
   assert.equal((await readFile(marker, "utf8")).trim(), "finished");
 });
+
+test("Windows setup distinguishes a running Ego process from an open window", { skip: process.platform !== "win32" }, () => {
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    "$source = [System.Management.Automation.Language.Parser]::ParseFile($env:MD_SETUP_TEST_SCRIPT, [ref]$null, [ref]$null)",
+    "$definition = $source.Find({ param($item) $item -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $item.Name -eq 'Find-EgoWindow' }, $true)",
+    ". ([scriptblock]::Create($definition.Extent.Text))",
+    "$script:handle = [IntPtr]::Zero",
+    "function Get-Process { [pscustomobject]@{ MainWindowHandle = $script:handle } }",
+    "if (Find-EgoWindow) { throw 'A background process does not have a window' }",
+    "$script:handle = [IntPtr] 1",
+    "if (-not (Find-EgoWindow)) { throw 'Expected the process with a window' }",
+  ].join("\n");
+  execFileSync("powershell.exe", ["-NoProfile", "-Command", script], {
+    encoding: "utf8", timeout: 10000, windowsHide: true,
+    env: { ...process.env, MD_SETUP_TEST_SCRIPT: fileURLToPath(new URL("../setup-windows.ps1", import.meta.url)) },
+  });
+});

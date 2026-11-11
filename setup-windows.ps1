@@ -37,6 +37,12 @@ function Find-EgoApp {
     }
 }
 
+function Find-EgoWindow {
+    Get-Process -Name ego -ErrorAction SilentlyContinue |
+        Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } |
+        Select-Object -First 1
+}
+
 function Write-SetupEvent($status) {
     @{ status = $status } | ConvertTo-Json -Compress
 }
@@ -96,8 +102,7 @@ if (-not (Find-EgoCli) -and -not (Find-EgoApp)) {
 if (-not (Find-EgoCli)) {
     $app = Find-EgoApp
     if (-not $app) { throw 'Ego Lite was not found after installation.' }
-    $window = Get-Process -Name ego -ErrorAction SilentlyContinue | Where-Object MainWindowHandle | Select-Object -First 1
-    if (-not $window) { Start-Process -FilePath $app }
+    if (-not (Find-EgoWindow)) { Start-Process -FilePath $app }
     $shown = $false
     $windowDeadline = (Get-Date).AddSeconds(30)
     $deadline = (Get-Date).AddMinutes(10)
@@ -105,8 +110,7 @@ if (-not (Find-EgoCli)) {
         Refresh-SetupPath
         if (Find-EgoCli) { break }
         if (-not $shown) {
-            $window = Get-Process -Name ego -ErrorAction SilentlyContinue | Where-Object MainWindowHandle | Select-Object -First 1
-            if ($window) {
+            if (Find-EgoWindow) {
                 Write-SetupEvent 'ego_setup'
                 $shown = $true
             } elseif ((Get-Date) -ge $windowDeadline) {

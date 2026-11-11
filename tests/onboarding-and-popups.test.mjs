@@ -91,7 +91,8 @@ test("首次引导按确认的格式输出", () => {
   assert.equal(guide("install"), "**第一步　安装 Ego Lite**\n[下载 Ego Lite](https://lite.ego.app/download)，打开安装包，按窗口提示完成安装。装好后打开 Ego Lite，回复「已打开」。");
   assert.equal(guide("install-window"), "**第一步　安装 Ego Lite**\n安装窗口已打开。请按窗口提示完成安装。");
   assert.equal(guide("setup-window"), "**第一步　完成 Ego Lite 设置**\nEgo Lite 已打开。请按窗口提示完成首次设置，完成后回复「设置完成」。");
-  assert.equal(guide("stores"), "**第二步　发门店名单**\n请发每家店的美团门店全名和门店 ID，再告诉我所属中台。如果都是同一个中台，中台名写一次就行。");
+  assert.equal(guide("stores"), "**第二步　发门店名单**\n可以上传 Excel，也可以把现成的名单直接粘贴或写在对话里。请提供美团门店全名、门店 ID 和所属中台。如果都是同一个中台，中台名写一次就行。");
+  assert.equal(guide("profile", "小仓", "乐心宜"), "**准备 Ego Lite 资料**\n这一步请在 Ego Lite 的资料管理里操作。新建资料，名称填「小仓」、「乐心宜」，每个名字各建一份。已有专用资料也可以改成同名。完成后回复「资料已准备好」，我来打开美团登录页。");
   assert.equal(guide("login", "小仓"), "**第三步　登录美团**\n「小仓」的美团登录页已打开。请在 Ego Lite 里登录，看到美团商家首页后，回复「登录完成」。");
   assert.equal(guide("login", "小仓", "乐心宜"), "**第三步　登录美团**\n「小仓」和「乐心宜」的美团登录页已打开。你可以先登录其中一个，完成后回复「小仓已登录」或「乐心宜已登录」。我会先核对已登录中台的门店。");
   assert.equal(guide("done", "3", "示例店（乙店）｜当前账号里找不到这个门店 ID"), "已核对并保存 3 家门店。下次直接告诉我要改哪家店、哪个时段、哪些档位和目标值。\n示例店（乙店）｜当前账号里找不到这个门店 ID");

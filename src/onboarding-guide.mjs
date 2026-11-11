@@ -5,7 +5,7 @@ const fixed = {
   open: "**第一步　打开 Ego Lite**\n打开 Ego Lite，按窗口提示完成首次设置。完成后重新打开当前对话工具，回复「已打开」。",
   node: "**安装 Node.js**\n[下载 Node.js](https://nodejs.org/)，打开安装包，按窗口提示完成安装。装好后回复「已装好」。",
   "node-window": "**安装 Node.js**\n如果出现 Windows 授权提示，请查看后确认。安装进度会自动继续。",
-  stores: "**第二步　发门店名单**\n请发每家店的美团门店全名和门店 ID，再告诉我所属中台。如果都是同一个中台，中台名写一次就行。",
+  stores: "**第二步　发门店名单**\n可以上传 Excel，也可以把现成的名单直接粘贴或写在对话里。请提供美团门店全名、门店 ID 和所属中台。如果都是同一个中台，中台名写一次就行。",
   inspect: "**第四步　核对门店**\n我会按名单查看各店的时段、档位、起送价、配送费和特殊时段开关。这一步只查看。",
 };
 
@@ -15,9 +15,9 @@ export function onboardingGuide(stage, values) {
   const validNames = names.length > 0 && names.every(name => name && !/[\r\n]/.test(name));
   if (stage === "profile" && validNames) {
     const quoted = names.map(name => "「" + name + "」").join("、");
-    const count = names.length === 1 ? "" : "，每个中台各建一份";
-    return "**准备 Ego Lite 资料**\n请在 Ego Lite 里新建资料，名称填" + quoted + count
-      + "。已有专用资料也可以直接改名。完成后回复「资料已准备好」。";
+    const count = names.length === 1 ? "" : "，每个名字各建一份";
+    return "**准备 Ego Lite 资料**\n这一步请在 Ego Lite 的资料管理里操作。新建资料，名称填" + quoted + count
+      + "。已有专用资料也可以改成同名。完成后回复「资料已准备好」，我来打开美团登录页。";
   }
   if (stage === "login" && validNames) {
     const heading = "**第三步　登录美团**\n";
