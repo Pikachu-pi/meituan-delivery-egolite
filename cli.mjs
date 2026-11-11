@@ -4,12 +4,14 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { writeRecord } from "./src/records.mjs";
+import { onboardingGuide } from "./src/onboarding-guide.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const [command, id, fileOrSpace, resumeSpace] = process.argv.slice(2);
 const usage = `美团配送设置
 
   node cli.mjs profiles                          查看 Ego 资料
+  node cli.mjs guide <步骤> [参数]               输出该步骤的固定提示
   node cli.mjs onboard <中台键> [空间ID]          打开登录页或按名单只读核对
   node cli.mjs inspect <门店ID> [空间ID]          只读核对并保存门店档案
   node cli.mjs apply <门店ID> <任务.json> [空间ID]  调整一家门店
@@ -28,6 +30,13 @@ const valid = {
 
 if (!command || command === "--help" || command === "-h") {
   console.log(usage);
+} else if (command === "guide") {
+  try {
+    console.log(onboardingGuide(id, process.argv.slice(4)));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
 } else if (!Object.hasOwn(valid, command) || !valid[command] || process.argv.length > 6) {
   console.error(usage);
   process.exitCode = 1;

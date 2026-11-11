@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { resolveNativeDialog, waitPastNotice } from "../src/ego-page.mjs";
-import { inspectPlatform } from "../src/ego-runner.mjs";
+import { checkOnboardingProfile, inspectPlatform } from "../src/ego-runner.mjs";
 
 const duringClick = new Error("a JavaScript confirm dialog opened while Runtime.evaluate was running; handle it before continuing");
 function dialogPage(type, message) {
@@ -81,4 +83,25 @@ test("首次引导按一个中台准备登录，登录后按该中台名单核�
   }, register);
   assert.deepEqual(after, [["90000001", 42], ["90000002", undefined]]);
   assert.equal(result.status, "read_only");
+});
+
+test("首次引导按确认的格式输出", () => {
+  const cli = fileURLToPath(new URL("../cli.mjs", import.meta.url));
+  const guide = (...args) => execFileSync(process.execPath, [cli, "guide", ...args], { encoding: "utf8" }).trimEnd();
+  assert.equal(guide("install"), "**第一步　安装 Ego Lite**\n[下载 Ego Lite](https://lite.ego.app/download)，打开安装包，按窗口提示完成安装。装好后打开 Ego Lite，回复「已打开」。");
+  assert.equal(guide("stores"), "**第二步　发门店名单**\n请发每家店的美团门店全名和门店 ID，再告诉我所属中台。如果都是同一个中台，中台名写一次就行。");
+  assert.equal(guide("login", "小仓"), "**第三步　登录美团**\n「小仓」的美团登录页已打开。请在 Ego Lite 里登录，看到美团商家首页后，回复「登录完成」。");
+  assert.equal(guide("login", "小仓", "乐心宜"), "**第三步　登录美团**\n「小仓」和「乐心宜」的美团登录页已打开。你可以先登录其中一个，完成后回复「小仓已登录」或「乐心宜已登录」。我会先核对已登录中台的门店。");
+  assert.equal(guide("done", "3", "示例店（乙店）｜当前账号里找不到这个门店 ID"), "已核对并保存 3 家门店。下次直接告诉我要改哪家店、哪个时段、哪些档位和目标值。\n示例店（乙店）｜当前账号里找不到这个门店 ID");
+});
+
+test("新登记只使用与中台同名的 Ego 资料", () => {
+  const available = [{ id: "1", name: "小仓" }, { id: "2", name: "默认资料" }];
+  assert.equal(checkOnboardingProfile({ name: "小仓", profileId: "1" }, available), undefined);
+  assert.deepEqual(checkOnboardingProfile({ name: "小仓", profileId: "2" }, available), {
+    status: "profile_mismatch", platform: "小仓", profileName: "默认资料", matchingProfileIds: ["1"],
+  });
+  assert.deepEqual(checkOnboardingProfile({ name: "乐心宜", profileId: "2" }, available), {
+    status: "profile_required", platform: "乐心宜", profileName: "默认资料", matchingProfileIds: [],
+  });
 });

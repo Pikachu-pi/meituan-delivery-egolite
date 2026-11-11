@@ -118,7 +118,7 @@ async function openStore(entry) {
   if (spaceId && prior?.profileId !== platform.profileId) throw new Error("续用空间未绑定登记资料");
   const task = prior
     ? (prior.ownership === "agent" ? await taskSpace(prior.id) : await takeOverTaskSpace(prior.id))
-    : await taskSpace(onboarding ? "美团登录 · " + (platform.name || store.platform) + " · " + store.id + " " + runId
+    : await taskSpace(onboarding ? platform.name.trim() + " · 美团登录 · " + store.id + " " + runId
       : "美团配送 " + store.id + " " + runId, { profileId: platform.profileId });
   const taskInfo = (await listTaskSpaces()).find(item => item.id === task.spaceId);
   if (taskInfo?.profileId !== platform.profileId) throw new Error("此 Ego 空间未绑定登记资料");
@@ -258,6 +258,19 @@ export async function inspectPlatform(config, platformKey, spaceId, runId, inspe
     platform: platform.name || platformKey, stores };
 }
 
+export function checkOnboardingProfile(platform, available) {
+  const name = typeof platform?.name === "string" && platform.name.trim();
+  if (!name) throw new Error("请填写中台名称。");
+  const matching = available.filter(profile => profile.name === name);
+  if (matching.some(profile => profile.id === platform.profileId)) return;
+  return {
+    status: matching.length ? "profile_mismatch" : "profile_required",
+    platform: name,
+    profileName: available.find(profile => profile.id === platform.profileId)?.name,
+    matchingProfileIds: matching.map(profile => profile.id),
+  };
+}
+
 async function run(request) {
   const report = async result => {
     if (request.resultFile) await writeRecord(request.resultFile, result);
@@ -272,6 +285,13 @@ async function run(request) {
     throw new Error("门店清单需包含 version: 1、platforms 和 stores。");
   }
   if (request.command === "onboard") {
+    const platform = Object.hasOwn(config.platforms, request.id) && config.platforms[request.id];
+    if (!platform) throw new Error("这个中台没有登记门店，请检查 .local/stores.json。");
+    const profileIssue = checkOnboardingProfile(platform, await profiles());
+    if (profileIssue) {
+      await report(profileIssue);
+      return;
+    }
     const result = await inspectPlatform(config, request.id, request.spaceId, request.runId);
     await report(result);
     if (["needs_check", "busy"].includes(result.status)) process.exitCode = 1;
