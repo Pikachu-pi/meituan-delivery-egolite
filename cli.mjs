@@ -51,6 +51,16 @@ if (!command || command === "--help" || command === "-h") {
   request.resultFile = path.join(root, ".local", "requests", request.runId + ".result.json");
   await writeRecord(requestFile, request);
   try {
+    if (process.platform === "win32") {
+      const setup = path.join(root, "setup-windows.ps1");
+      const launch = spawnSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "RemoteSigned", "-File", setup, "-OpenBrowser"], {
+        encoding: "utf8", timeout: 45000, windowsHide: true,
+      });
+      if (launch.error || launch.status !== 0) {
+        const detail = launch.stderr?.trim().split(/\r?\n/)[0] || launch.error?.message;
+        throw new Error("Ego Lite 启动检查失败。请从 Windows 开始菜单正常打开 Ego Lite 后重试。" + (detail ? "\n" + detail : ""));
+      }
+    }
     const runner = new URL("./src/ego-runner.mjs", import.meta.url);
     runner.searchParams.set("request", pathToFileURL(requestFile).href);
     const specifier = runner.href.replace(/'/g, "%27");

@@ -1,4 +1,4 @@
-param([switch] $Check)
+param([switch] $Check, [switch] $OpenBrowser)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -43,6 +43,26 @@ function Find-EgoWindow {
         Select-Object -First 1
 }
 
+function Open-EgoWindow {
+    $window = Find-EgoWindow
+    if (-not $window) {
+        $app = Find-EgoApp
+        if (-not $app) { throw 'Ego Lite was not found. Open it from the Windows Start menu or run setup.' }
+        Start-Process -FilePath $app -WorkingDirectory (Split-Path -Parent $app)
+        $deadline = (Get-Date).AddSeconds(30)
+        do {
+            Start-Sleep -Milliseconds 250
+            $window = Find-EgoWindow
+        } until ($window -or (Get-Date) -ge $deadline)
+        if (-not $window) { throw 'The Ego Lite window did not appear. Open it from the Windows Start menu and retry.' }
+    }
+
+    $browser = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $($window.Id)"
+    if ($browser.CommandLine -match '(?:^|\s)"?--no-sandbox(?=["\s=]|$)') {
+        throw 'Ego Lite was started with --no-sandbox. Close it, reopen it from the Windows Start menu, then retry.'
+    }
+}
+
 function Write-SetupEvent($status) {
     @{ status = $status } | ConvertTo-Json -Compress
 }
@@ -77,6 +97,10 @@ function Get-SetupInstaller($url, $file) {
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'This setup script is for Windows.' }
 if ($Check) {
     Write-SetupState
+    return
+}
+if ($OpenBrowser) {
+    Open-EgoWindow
     return
 }
 Refresh-SetupPath

@@ -64,3 +64,37 @@ test("Windows setup distinguishes a running Ego process from an open window", { 
     env: { ...process.env, MD_SETUP_TEST_SCRIPT: fileURLToPath(new URL("../setup-windows.ps1", import.meta.url)) },
   });
 });
+
+test("Windows daily launch opens the installed Ego app only when needed and rejects --no-sandbox", { skip: process.platform !== "win32" }, () => {
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    "$source = [System.Management.Automation.Language.Parser]::ParseFile($env:MD_SETUP_TEST_SCRIPT, [ref]$null, [ref]$null)",
+    "$definition = $source.Find({ param($item) $item -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $item.Name -eq 'Open-EgoWindow' }, $true)",
+    ". ([scriptblock]::Create($definition.Extent.Text))",
+    "$script:starts = 0",
+    "$script:window = $null",
+    "$script:commandLine = '\"C:\\Installed Ego\\ego.exe\"'",
+    "function Find-EgoWindow { $script:window }",
+    "function Find-EgoApp { 'C:\\Installed Ego\\ego.exe' }",
+    "function Start-Process($FilePath, $WorkingDirectory) {",
+    "    if ($FilePath -ne 'C:\\Installed Ego\\ego.exe' -or $WorkingDirectory -ne 'C:\\Installed Ego' -or $args.Count) { throw 'Unexpected launcher or arguments' }",
+    "    $script:starts++",
+    "    $script:window = @{ Id = 42 }",
+    "}",
+    "function Get-CimInstance($ClassName, $Filter) {",
+    "    if ($ClassName -ne 'Win32_Process' -or $Filter -ne 'ProcessId = 42') { throw 'Expected the visible browser process' }",
+    "    @{ CommandLine = $script:commandLine }",
+    "}",
+    "Open-EgoWindow",
+    "Open-EgoWindow",
+    "if ($script:starts -ne 1) { throw 'Expected the existing browser to be reused' }",
+    "$script:commandLine += ' --no-sandbox'",
+    "$rejected = $false",
+    "try { Open-EgoWindow } catch { if ($_.Exception.Message -notmatch 'was started with --no-sandbox') { throw }; $rejected = $true }",
+    "if (-not $rejected -or $script:starts -ne 1) { throw 'Expected the unsupported startup to be reported without restarting the browser' }",
+  ].join("\n");
+  execFileSync("powershell.exe", ["-NoProfile", "-Command", script], {
+    encoding: "utf8", timeout: 10000, windowsHide: true,
+    env: { ...process.env, MD_SETUP_TEST_SCRIPT: fileURLToPath(new URL("../setup-windows.ps1", import.meta.url)) },
+  });
+});

@@ -11,6 +11,12 @@ description: 用 Ego Lite 查看美团闪购门店的配送设置，或调整指
 - **调整或恢复**时，按本次指令确定门店、时段、范围和目标。用户要改全部时段时，先用 `inspect` 确认现场有哪些时段。区分普通档位和页面序号，[档位定义](docs/档位与时段.md) 也说明了怎么指定快送。把任务写在 `.local/`，单店用 `apply`，多店用 `batch`。恢复价格时，按原记录填写上次调后的值和当时的原值。示例见 [单店任务](examples/job.example.json) 和 [恢复任务](examples/restore.example.json)。
 - **报告结果**时，读取运行摘要和相关明细，说明原值、保存反馈及重新打开后的实际值。结果待核实时先用 `inspect` 查看现场，再根据实际值和用户指令处理。
 
+## 日常启动 Ego Lite
+
+直接运行项目命令。Windows 下 `inspect`、`apply` 和 `batch` 会先检查 Ego Lite。已有窗口就复用，未打开就启动已安装的 Ego Lite 并等待窗口出现，再通过 `ego-browser` 连接已登记的资料。WorkBuddy 等对话工具也走这个入口。禁止用工具自带的浏览器启动器接管这一步，或给 Ego 添加 `--no-sandbox`。
+
+如果已有窗口显示 `--no-sandbox` 警告，请用户关闭这个实例并从 Windows 开始菜单重新打开「ego (lite)」，再继续当前任务。
+
 ## 首次引导
 
 每次只发当前一步，已经完成的步骤直接跳过。逐字发送 `node cli.mjs guide` 输出的正文，保留标题和换行。命令、环境检查和内部字段只用于执行。Node.js 尚未安装时，从 [固定文案](src/onboarding-guide.mjs) 取相应正文。
